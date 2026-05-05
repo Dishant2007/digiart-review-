@@ -1,12 +1,15 @@
 from flask import Flask, request, Response
 from flask_cors import CORS
 from openai import OpenAI
+from dotenv import load_dotenv
 import os
+
+load_dotenv()  # reads your .env file
 
 app = Flask(__name__)
 CORS(app)
 
-client = OpenAI(api_key="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")
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 SYSTEM_PROMPT = """You are a real customer writing a Google review for DigiArt Invitations (Surat).
 Digital invitations — wedding, birthday, baby shower, engagement, ceremony.
