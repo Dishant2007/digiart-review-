@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 import gspread
 import json
+import pytz
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 load_dotenv()  # reads your .env file
@@ -30,8 +31,9 @@ def save_to_sheet(business, service, review):
     try:
         sheet = get_sheet(business)
         if sheet:
-            now = datetime.now().strftime("%d-%m-%Y %H:%M")
-            sheet.append_row([now, business, service, review])
+                india = pytz.timezone('Asia/Kolkata')
+                now = datetime.now(india).strftime("%d-%m-%Y %I:%M %p")
+                sheet.append_row([now, business, service, review])
     except Exception as e:
         print(f"Sheet error: {e}")
 app = Flask(__name__)
