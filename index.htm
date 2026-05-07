@@ -3,6 +3,59 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Review</title>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// BUSINESS CONFIG — change these values for each new client.
+// businessName MUST match the key in backend.py BUSINESSES dict.
+// ═══════════════════════════════════════════════════════════════
+const BUSINESS_CONFIG = {
+  businessName: "DigiArt Invitations",
+  city: "Surat",
+
+  logoUrl: "https://digiartinvitation.in/cdn/shop/files/Untitled_design_5.png",
+  pageTitle: "How was your experience?",
+  pageSubtitle: "Takes just 10 seconds &nbsp;·&nbsp; Means the world to us 💖",
+
+  dividerLabel: "your occasion",
+  dropdownPlaceholder: "Select your invitation type...",
+  otherPlaceholder: "Tell us what we made for you...",
+  buttonLabel: "Generate My Review ✨",
+  loaderText: "Writing your review...",
+
+  products: [
+    { value: "Wedding Invitation",        label: "💍 Wedding Invitation" },
+    { value: "Video Invitation",          label: "🎬 Video Invitation" },
+    { value: "Digital Invitation",        label: "📱 Digital Invitation" },
+    { value: "Baby Shower Invitation",    label: "🍼 Baby Shower Invitation" },
+    { value: "Birthday Invitation",       label: "🎂 Birthday Invitation" },
+    { value: "Engagement Invitation",     label: "💑 Engagement Invitation" },
+    { value: "Housewarming Invitation",   label: "🏠 Housewarming Invitation" },
+    { value: "Mundan Invitation",         label: "✂️ Mundan Invitation" },
+    { value: "Randal Vidhi Invitation",   label: "🪔 Randal Vidhi Invitation" },
+    { value: "Chhatthi Pujan Invitation", label: "🌸 Chhatthi Pujan Invitation" },
+    { value: "Mamera Card",               label: "🎁 Mamera Card" },
+    { value: "Baby Announcement Box",     label: "📦 Baby Announcement Box" },
+    { value: "Money Cover",               label: "💰 Money Cover" },
+    { value: "Business Sticker",          label: "🏷️ Business Sticker" },
+    { value: "Other",                     label: "✨ Other" },
+  ],
+
+  badges: ["Fast delivery", "Premium designs", "Surat based"],
+
+  googleReviewUrl: "https://g.page/r/CeDBuRn8w8UnEBM/review",
+  backendUrl:      "https://digiart-review-backend.onrender.com/review",
+
+  theme: {
+    primary:      "#E8445A",
+    primaryLight: "#FF6B82",
+    primaryBg:    "#fff0f2",
+    accent:       "#FFC107",
+  },
+};
+</script>
+
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -413,10 +466,10 @@
   <div class="card">
     <div class="header">
       <div class="logo-wrap">
-        <img src="//digiartinvitation.in/cdn/shop/files/Untitled_design_5.png" alt="DigiArt" />
+        <img id="logoImg" src="" alt="" />
       </div>
-      <h1>How was your experience?</h1>
-      <p>Takes just 10 seconds &nbsp;·&nbsp; Means the world to us 💖</p>
+      <h1 id="pageTitle"></h1>
+      <p id="pageSubtitle"></p>
     </div>
 
     <div class="stars-block">
@@ -430,43 +483,22 @@
       <span class="stars-tag">5.0 &nbsp;·&nbsp; Excellent</span>
     </div>
 
-    <div class="divider"><span>your occasion</span></div>
+    <div class="divider"><span id="dividerLabel"></span></div>
 
     <div class="select-wrap">
-      <select id="productSelect" required onchange="handleProductChange(this.value)">
-        <option value="">Select your invitation type...</option>
-        <option value="Wedding Invitation">💍 Wedding Invitation</option>
-        <option value="Video Invitation">🎬 Video Invitation</option>
-        <option value="Digital Invitation">📱 Digital Invitation</option>
-        <option value="Baby Shower Invitation">🍼 Baby Shower Invitation</option>
-        <option value="Birthday Invitation">🎂 Birthday Invitation</option>
-        <option value="Engagement Invitation">💑 Engagement Invitation</option>
-        <option value="Housewarming Invitation">🏠 Housewarming Invitation</option>
-        <option value="Mundan Invitation">✂️ Mundan Invitation</option>
-        <option value="Randal Vidhi Invitation">🪔 Randal Vidhi Invitation</option>
-        <option value="Chhatthi Pujan Invitation">🌸 Chhatthi Pujan Invitation</option>
-        <option value="Mamera Card">🎁 Mamera Card</option>
-        <option value="Baby Announcement Box">📦 Baby Announcement Box</option>
-        <option value="Money Cover">💰 Money Cover</option>
-        <option value="Business Sticker">🏷️ Business Sticker</option>
-        <option value="Other">✨ Other</option>
-      </select>
+      <select id="productSelect" required onchange="handleProductChange(this.value)"></select>
     </div>
 
-    <input id="otherInput" maxlength="80" type="text" placeholder="Tell us what we made for you..." />
+    <input id="otherInput" maxlength="80" type="text" />
 
-    <button id="btn" class="btn">Generate My Review ✨</button>
+    <button id="btn" class="btn"></button>
 
     <div id="loader" class="loader">
       <div class="loader-dots"><span></span><span></span><span></span></div>
-      <p>Writing your review...</p>
+      <p id="loaderText"></p>
     </div>
 
-    <div class="trust">
-      <div class="badge"><div class="badge-dot"></div>Fast delivery</div>
-      <div class="badge"><div class="badge-dot"></div>Premium designs</div>
-      <div class="badge"><div class="badge-dot"></div>Surat based</div>
-    </div>
+    <div class="trust" id="trustBadges"></div>
   </div>
 </div>
 
@@ -484,6 +516,42 @@
 <div id="toast"></div>
 
 <script>
+/* ── APPLY BUSINESS CONFIG TO PAGE ── */
+(function applyConfig() {
+  const c = BUSINESS_CONFIG;
+
+  const root = document.documentElement.style;
+  root.setProperty('--rose',    c.theme.primary);
+  root.setProperty('--rose-lt', c.theme.primaryLight);
+  root.setProperty('--rose-bg', c.theme.primaryBg);
+  root.setProperty('--gold',    c.theme.accent);
+
+  document.title = c.businessName + ' — Review';
+
+  const logo = document.getElementById('logoImg');
+  logo.src = c.logoUrl;
+  logo.alt = c.businessName;
+
+  document.getElementById('pageTitle').textContent  = c.pageTitle;
+  document.getElementById('pageSubtitle').innerHTML = c.pageSubtitle;
+  document.getElementById('dividerLabel').textContent = c.dividerLabel;
+  document.getElementById('btn').textContent         = c.buttonLabel;
+  document.getElementById('loaderText').textContent  = c.loaderText;
+  document.getElementById('otherInput').placeholder  = c.otherPlaceholder;
+
+  const sel = document.getElementById('productSelect');
+  sel.innerHTML =
+    '<option value="">' + c.dropdownPlaceholder + '</option>' +
+    c.products.map(p =>
+      '<option value="' + p.value + '">' + p.label + '</option>'
+    ).join('');
+
+  document.getElementById('trustBadges').innerHTML =
+    c.badges.map(b =>
+      '<div class="badge"><div class="badge-dot"></div>' + b + '</div>'
+    ).join('');
+})();
+
 /* ── STAR TRAIL ── */
 (function() {
   const canvas = document.getElementById('starCanvas');
@@ -621,7 +689,7 @@ document.getElementById('copyBtn').addEventListener('click', () => {
   navigator.clipboard.writeText(text).then(() => {
     showToast('Copied! Opening Google Reviews... ✅');
     setTimeout(() => {
-      window.open('https://g.page/r/CeDBuRn8w8UnEBM/review', '_blank');
+      window.open(BUSINESS_CONFIG.googleReviewUrl, '_blank');
     }, 800);
   }).catch(() => {
     document.getElementById('finalReview').select();
@@ -657,11 +725,15 @@ async function submitReview() {
   loader.style.display = 'block';
 
   try {
-    /* ── CHANGED LINE — points to local Python server ── */
-    const res = await fetch('http://localhost:5000/review', {
+    const res = await fetch(BUSINESS_CONFIG.backendUrl, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ product, rating: '5' }),
+      body:    JSON.stringify({
+        product,
+        rating:   '5',
+        business: BUSINESS_CONFIG.businessName,
+        city:     BUSINESS_CONFIG.city,
+      }),
     });
     if (!res.ok) throw new Error('Error ' + res.status);
     const reviewText = await res.text();
@@ -679,6 +751,3 @@ async function submitReview() {
 </script>
 </body>
 </html>
-
-
-

@@ -1,4 +1,7 @@
 .env
+api.env
 __pycache__/
 *.pyc
 google-credentials.json
+google shhet json key/
+*.json
