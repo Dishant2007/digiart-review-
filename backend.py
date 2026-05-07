@@ -3,9 +3,36 @@ from flask_cors import CORS
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
-
+import gspread
+import json
+from google.oauth2.service_account import Credentials
+from datetime import datetime
 load_dotenv()  # reads your .env file
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
+SHEET_IDS = {
+    "DigiArt Invitations": "1vcoQjEj0rPrxTQysI8vM2ZOe8gWkRWeYQ_0LsQf7riE",
+    
+}
+def get_sheet(business_name):
+    creds = Credentials.from_service_account_file(
+        'google-credentials.json',
+        scopes=SCOPES
+    )
+    gc = gspread.authorize(creds)
+    sheet_id = SHEET_IDS.get(business_name)
+    if not sheet_id:
+        return None
+    return gc.open_by_key(sheet_id).sheet1
+
+def save_to_sheet(business, service, review):
+    try:
+        sheet = get_sheet(business)
+        if sheet:
+            now = datetime.now().strftime("%d-%m-%Y %H:%M")
+            sheet.append_row([now, business, service, review])
+    except Exception as e:
+        print(f"Sheet error: {e}")
 app = Flask(__name__)
 CORS(app)
 
@@ -17,11 +44,10 @@ Known for: fast delivery, premium designs, easy customization, good support, hom
 
 STEP 1 — PICK FORMAT (do this silently, output only the review):
 Generate a random number 1–100.
-- 1–70 → SHORT: exactly 1 line, 8–15 words
-- 71–90 → MEDIUM: exactly 1 line, 5–8 words
-- 91–95 → MICRO: 2–4 words only (e.g. "Totally worth it" / "Perfect design")
-- 96–100 → DETAILED: 4–6 lines, genuine storytelling, still max ~80 words total
-
+- 1–60 → MICRO: 2–5 words only (e.g. "Totally worth it" / "Perfect design")
+- 61–90 → SHORT: exactly 1 line, 6–10 words
+- 91–97 → MEDIUM: exactly 1 line, 10–15 words
+- 98–100 → DETAILED: 2–3 lines, max 40 words total
 STEP 2 — WRITE THE REVIEW:
 - Tone: natural, friendly, genuine — never robotic
 - Slight emotional touch (relief, happiness, convenience)
@@ -55,6 +81,7 @@ def generate_review():
     )
 
     review_text = response.choices[0].message.content.strip()
+    save_to_sheet(business, product, review_text)
     return Response(review_text, mimetype="text/plain")
 
 @app.route("/", methods=["GET"])
