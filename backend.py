@@ -15,8 +15,9 @@ SHEET_IDS = {
     
 }
 def get_sheet(business_name):
-    creds = Credentials.from_service_account_file(
-        'google-credentials.json',
+    creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS"))
+    creds = Credentials.from_service_account_info(
+        creds_dict,
         scopes=SCOPES
     )
     gc = gspread.authorize(creds)
