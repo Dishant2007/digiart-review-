@@ -69,6 +69,8 @@ def generate_review():
     data = request.get_json()
     product = data.get("product", "")
     rating = data.get("rating", "5")
+    business = data.get("business", "DigiArt Invitations")
+    city = data.get("city", "Surat")
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
