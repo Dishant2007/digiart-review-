@@ -551,7 +551,12 @@ const BUSINESS_CONFIG = {
       '<div class="badge"><div class="badge-dot"></div>' + b + '</div>'
     ).join('');
 })();
-
+// wakes up backend after page load
+setTimeout(() => {
+  fetch(BUSINESS_CONFIG.backendUrl.replace('/review', '/'), { method: 'GET' })
+    .catch(() => {});
+}, 2000);
+         
 /* ── STAR TRAIL ── */
 (function() {
   const canvas = document.getElementById('starCanvas');
@@ -724,7 +729,7 @@ async function submitReview() {
   btn.disabled         = true;
   loader.style.display = 'block';
 
-  try {
+try {
     const res = await fetch(BUSINESS_CONFIG.backendUrl, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -732,14 +737,26 @@ async function submitReview() {
         product,
         rating:   '5',
         business: BUSINESS_CONFIG.businessName,
-        
       }),
     });
     if (!res.ok) throw new Error('Error ' + res.status);
-    const reviewText = await res.text();
-    if (!reviewText || !reviewText.trim()) throw new Error('Empty response');
-    document.getElementById('finalReview').value = reviewText.trim().replace(/^["']|["']$/g, '');
+
+    // show overlay immediately
+    document.getElementById('finalReview').value = '';
     document.getElementById('overlay').classList.add('show');
+
+    // stream text word by word
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let review = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      review += decoder.decode(value);
+      document.getElementById('finalReview').value = review.replace(/^["']|["']$/g, '');
+    }
+
+    if (!review.trim()) throw new Error('Empty response');
   } catch (err) {
     console.error(err);
     showToast('Something went wrong. Please try again ❌', 4000);

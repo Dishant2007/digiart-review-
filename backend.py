@@ -1,4 +1,4 @@
-from flask import Flask, request, Response, jsonify
+from flask import Flask, request, Response, jsonify, stream_with_context
 from flask_cors import CORS
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -6,6 +6,9 @@ import os
 import gspread
 import json
 import pytz
+import threading
+import requests
+import time
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
@@ -15,9 +18,6 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 # ─────────────────────────────────────────────────────────────
 # BUSINESS CONFIG
 # To add a new client: copy one block, change the values, done.
-# Each client needs:
-#   - sheet_id      : their own Google Sheet ID (where their reviews are logged)
-#   - system_prompt : tells the AI how to write reviews for THIS business
 # ─────────────────────────────────────────────────────────────
 BUSINESSES = {
     "DigiArt Invitations": {
@@ -68,35 +68,61 @@ def save_to_sheet(sheet_id, business, service, review):
         print(f"Sheet error: {e}")
 
 
+def keep_alive():
+    while True:
+        time.sleep(14 * 60)
+        try:
+            requests.get("https://digiart-review-backend.onrender.com/")
+        except:
+            pass
+
+
 app = Flask(__name__)
 CORS(app)
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+# Keep server awake — prevents Render cold start
+threading.Thread(target=keep_alive, daemon=True).start()
 
 
 @app.route("/review", methods=["POST"])
 def generate_review():
     data = request.get_json() or {}
-    product = data.get("product", "")
-    rating = data.get("rating", "5")
+    product  = data.get("product", "")
+    rating   = data.get("rating", "5")
     business = data.get("business", "")
 
     config = BUSINESSES.get(business)
     if not config:
         return jsonify({"error": f"Unknown business: {business}"}), 400
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": config["system_prompt"]},
-            {"role": "user", "content": f"Occasion: {product}, Rating: {rating}"}
-        ],
-        max_tokens=200,
-        temperature=1.0
-    )
+    def stream_review():
+        collected = []
+        stream = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": config["system_prompt"]},
+                {"role": "user",   "content": f"Occasion: {product}, Rating: {rating}"}
+            ],
+            max_tokens=200,
+            temperature=1.0,
+            stream=True,
+        )
+        for chunk in stream:
+            token = chunk.choices[0].delta.content
+            if token:
+                collected.append(token)
+                yield token
 
-    review_text = response.choices[0].message.content.strip()
-    save_to_sheet(config["sheet_id"], business, product, review_text)
-    return Response(review_text, mimetype="text/plain")
+        # Save to sheet in background — does not slow down the response
+        full_text = "".join(collected).strip()
+        threading.Thread(
+            target=save_to_sheet,
+            args=(config["sheet_id"], business, product, full_text),
+            daemon=True,
+        ).start()
+
+    return Response(stream_with_context(stream_review()), mimetype="text/plain")
 
 
 @app.route("/", methods=["GET"])
