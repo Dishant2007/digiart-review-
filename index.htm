@@ -732,7 +732,7 @@ async function submitReview() {
         product,
         rating:   '5',
         business: BUSINESS_CONFIG.businessName,
-        city:     BUSINESS_CONFIG.city,
+        
       }),
     });
     if (!res.ok) throw new Error('Error ' + res.status);
