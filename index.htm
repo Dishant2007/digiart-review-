@@ -454,6 +454,21 @@ const BUSINESS_CONFIG = {
     select { font-size:13px; padding: 0 40px 0 14px; }
     .trust { gap:10px; }
   }
+
+
+  /* confetti pieces */
+  .confetti {
+    position: fixed;
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 9999;
+    animation: confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
 </style>
 </head>
 <body>
@@ -741,10 +756,10 @@ try {
     });
     if (!res.ok) throw new Error('Error ' + res.status);
 
-    // show overlay immediately
-    document.getElementById('finalReview').value = '';
-    document.getElementById('overlay').classList.add('show');
-
+// show overlay immediately with cursor
+document.getElementById('finalReview').value = '▋';
+document.getElementById('overlay').classList.add('show');
+launchConfetti();
     // stream text word by word
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -763,6 +778,25 @@ try {
   } finally {
     btn.disabled         = false;
     loader.style.display = 'none';
+  }
+}
+
+
+/* ── CONFETTI BURST ── */
+function launchConfetti() {
+  const colors = ['#E8445A', '#FFC107', '#FF6B82', '#4CAF50', '#2196F3', '#9C27B0'];
+  for (let i = 0; i < 60; i++) {
+    const el = document.createElement('div');
+    el.classList.add('confetti');
+    el.style.left     = Math.random() * 100 + 'vw';
+    el.style.top      = '-10px';
+    el.style.background = colors[Math.floor(Math.random() * colors.length)];
+    el.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+    el.style.animationDelay   = (Math.random() * 0.5) + 's';
+    el.style.width  = (6 + Math.random() * 8) + 'px';
+    el.style.height = (6 + Math.random() * 8) + 'px';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
   }
 }
 </script>
