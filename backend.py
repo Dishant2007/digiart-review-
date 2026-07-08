@@ -9,11 +9,13 @@ import pytz
 import threading
 import requests
 import time
+from gspread.exceptions import WorksheetNotFound
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 load_dotenv()
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+REVIEW_HEADERS = ["Date Time", "Business", "Review"]
 
 # ─────────────────────────────────────────────────────────────
 # BUSINESS CONFIG
@@ -22,6 +24,7 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 BUSINESSES = {
     "DigiArt Invitations": {
         "sheet_id": "1vcoQjEj0rPrxTQysI8vM2ZOe8gWkRWeYQ_0LsQf7riE",
+        "worksheet_name": "Sheet1",
         "system_prompt": """You are a real customer writing a Google review for DigiArt Invitations (Surat).
 Digital invitations
 Known for: fast delivery, premium designs, easy customization, good support, home delivery, smooth experience.
@@ -48,19 +51,51 @@ RULES:
 - Output ONLY the review text. No labels, no explanations, nothing else.
 - Never write more than 40 words total under any format""",
     },
+
+    "Jaydev Mobile": {
+        "sheet_id": "1vcoQjEj0rPrxTQysI8vM2ZOe8gWkRWeYQ_0LsQf7riE",
+        "worksheet_name": "Jaydev Mobile",
+        "system_prompt": """You help a real customer write a short Google review for Jaydev Mobile.
+
+Jaydev Mobile is a mobile shop/service business.
+Known for: mobile phones, accessories, repair service, helpful support, and a smooth customer experience.
+
+Write a natural review that can fit a general customer experience.
+
+RULES:
+- Output ONLY the review text. No labels, no explanations, nothing else.
+- Keep it short, natural, and genuine.
+- Do not mention a specific service unless the customer provided one.
+- Never write more than 40 words total.""",
+    },
+    
 }
 
 
-def get_sheet(sheet_id):
+def get_sheet(sheet_id, worksheet_name):
     creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS"))
     creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
     gc = gspread.authorize(creds)
-    return gc.open_by_key(sheet_id).sheet1
+    spreadsheet = gc.open_by_key(sheet_id)
 
-
-def save_to_sheet(sheet_id, business, service, review):
     try:
-        sheet = get_sheet(sheet_id)
+        sheet = spreadsheet.worksheet(worksheet_name)
+    except WorksheetNotFound:
+        sheet = spreadsheet.add_worksheet(
+            title=worksheet_name,
+            rows=1000,
+            cols=len(REVIEW_HEADERS),
+        )
+
+    if not sheet.row_values(1):
+        sheet.append_row(REVIEW_HEADERS)
+
+    return sheet
+
+
+def save_to_sheet(sheet_id, worksheet_name, business, service, review):
+    try:
+        sheet = get_sheet(sheet_id, worksheet_name)
         india = pytz.timezone('Asia/Kolkata')
         now = datetime.now(india).strftime("%d-%m-%Y %I:%M %p")
         sheet.append_row([now, business, service, review])
@@ -118,7 +153,7 @@ def generate_review():
         full_text = "".join(collected).strip()
         threading.Thread(
             target=save_to_sheet,
-            args=(config["sheet_id"], business, product, full_text),
+            args=(config["sheet_id"], config["worksheet_name"], business, product, full_text),
             daemon=True,
         ).start()
 
