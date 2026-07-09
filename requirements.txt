@@ -3,7 +3,3 @@ flask-cors
 openai
 gunicorn
 python-dotenv
-gspread
-google-auth
-pytz
-requests

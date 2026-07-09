@@ -1,21 +1,11 @@
-from flask import Flask, request, Response, jsonify, stream_with_context
+from flask import Flask, request, Response, jsonify, stream_with_context, send_from_directory
 from flask_cors import CORS
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
-import gspread
-import json
-import pytz
-import threading
-import requests
-import time
-from gspread.exceptions import WorksheetNotFound
-from google.oauth2.service_account import Credentials
-from datetime import datetime
 
 load_dotenv()
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-REVIEW_HEADERS = ["Date Time", "Business", "Review"]
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ─────────────────────────────────────────────────────────────
 # BUSINESS CONFIG
@@ -23,8 +13,6 @@ REVIEW_HEADERS = ["Date Time", "Business", "Review"]
 # ─────────────────────────────────────────────────────────────
 BUSINESSES = {
     "DigiArt Invitations": {
-        "sheet_id": "1vcoQjEj0rPrxTQysI8vM2ZOe8gWkRWeYQ_0LsQf7riE",
-        "worksheet_name": "Sheet1",
         "system_prompt": """You are a real customer writing a Google review for DigiArt Invitations (Surat).
 Digital invitations
 Known for: fast delivery, premium designs, easy customization, good support, home delivery, smooth experience.
@@ -53,8 +41,6 @@ RULES:
     },
 
     "Jaydev Mobile": {
-        "sheet_id": "1vcoQjEj0rPrxTQysI8vM2ZOe8gWkRWeYQ_0LsQf7riE",
-        "worksheet_name": "Jaydev Mobile",
         "system_prompt": """You help a real customer write a short Google review for Jaydev Mobile.
 
 Jaydev Mobile is a mobile shop/service business.
@@ -72,53 +58,9 @@ RULES:
 }
 
 
-def get_sheet(sheet_id, worksheet_name):
-    creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS"))
-    creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-    gc = gspread.authorize(creds)
-    spreadsheet = gc.open_by_key(sheet_id)
-
-    try:
-        sheet = spreadsheet.worksheet(worksheet_name)
-    except WorksheetNotFound:
-        sheet = spreadsheet.add_worksheet(
-            title=worksheet_name,
-            rows=1000,
-            cols=len(REVIEW_HEADERS),
-        )
-
-    if not sheet.row_values(1):
-        sheet.append_row(REVIEW_HEADERS)
-
-    return sheet
-
-
-def save_to_sheet(sheet_id, worksheet_name, business, service, review):
-    try:
-        sheet = get_sheet(sheet_id, worksheet_name)
-        india = pytz.timezone('Asia/Kolkata')
-        now = datetime.now(india).strftime("%d-%m-%Y %I:%M %p")
-        sheet.append_row([now, business, service, review])
-    except Exception as e:
-        print(f"Sheet error: {e}")
-
-
-def keep_alive():
-    while True:
-        time.sleep(14 * 60)
-        try:
-            requests.get("https://digiart-review-backend.onrender.com/")
-        except:
-            pass
-
-
 app = Flask(__name__)
 CORS(app)
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-
-# Keep server awake — prevents Render cold start
-threading.Thread(target=keep_alive, daemon=True).start()
-
 
 @app.route("/review", methods=["POST"])
 def generate_review():
@@ -132,7 +74,6 @@ def generate_review():
         return jsonify({"error": f"Unknown business: {business}"}), 400
 
     def stream_review():
-        collected = []
         stream = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -146,24 +87,30 @@ def generate_review():
         for chunk in stream:
             token = chunk.choices[0].delta.content
             if token:
-                collected.append(token)
                 yield token
-
-        # Save to sheet in background — does not slow down the response
-        full_text = "".join(collected).strip()
-        threading.Thread(
-            target=save_to_sheet,
-            args=(config["sheet_id"], config["worksheet_name"], business, product, full_text),
-            daemon=True,
-        ).start()
 
     return Response(stream_with_context(stream_review()), mimetype="text/plain")
 
 
 @app.route("/", methods=["GET"])
+def home():
+    return send_from_directory(BASE_DIR, "index.htm")
+
+
+@app.route("/jaydev-mobile", methods=["GET"])
+def jaydev_mobile():
+    return send_from_directory(BASE_DIR, "jaydev-mobile.htm")
+
+
+@app.route("/jaydev-mobile-preview", methods=["GET"])
+def jaydev_mobile_preview():
+    return send_from_directory(BASE_DIR, "jaydev-mobile.preview.htm")
+
+
+@app.route("/health", methods=["GET"])
 def health():
-    return "Review API is running ✅"
+    return "Review API is running"
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=False)

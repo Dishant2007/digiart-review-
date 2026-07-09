@@ -10,6 +10,10 @@
 // BUSINESS CONFIG — change these values for each new client.
 // businessName MUST match the key in backend.py BUSINESSES dict.
 // ═══════════════════════════════════════════════════════════════
+const BACKEND_ORIGIN = window.location.protocol === "file:"
+  ? "http://127.0.0.1:5000"
+  : window.location.origin;
+
 const BUSINESS_CONFIG = {
   businessName: "DigiArt Invitations",
   city: "Surat",
@@ -45,7 +49,7 @@ const BUSINESS_CONFIG = {
   badges: ["Fast delivery", "Premium designs", "Surat based"],
 
   googleReviewUrl: "https://g.page/r/CeDBuRn8w8UnEBM/review",
-  backendUrl:      "https://digiart-review-backend.onrender.com/review",
+  backendUrl:      `${BACKEND_ORIGIN}/review`,
 
   theme: {
     primary:      "#E8445A",
@@ -568,7 +572,7 @@ const BUSINESS_CONFIG = {
 })();
 // wakes up backend after page load
 setTimeout(() => {
-  fetch(BUSINESS_CONFIG.backendUrl.replace('/review', '/'), { method: 'GET' })
+  fetch(BUSINESS_CONFIG.backendUrl.replace('/review', '/health'), { method: 'GET' })
     .catch(() => {});
 }, 2000);
          
